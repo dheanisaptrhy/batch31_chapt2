@@ -2,6 +2,8 @@
 const { response } = require('express')
 const express = require('express')
 // import  express  from 'express' (samimawon)
+const db = require('./connection/db.js')
+// import db from '.connection/db.js'
 
 const app = express()
 
@@ -48,14 +50,36 @@ app.get('/home', function(req, res){
 })
 
 app.get('/blog', function(req, res){
-    console.log(blogs)
-    let dataBlogs = blogs.map(function(data){
-        return {
-            ...data,
-            isLogin:isLogin
-        }
+    let query = 'select * from tb_blog'
+    db.connect((err, client,done)=>{
+        if(err) throw err
+        client.query(query, (err,result)=>{
+            done()
+
+            if(err) throw err
+            let data = result.rows
+
+            console.log(data)
+
+            data = data.map((blog)=>{
+                return {
+                    ...blog,
+                    isLogin:isLogin,
+                    posted_at: getFullTime(blog.posted_at)
+                }
+            })
+            res.render('blog', {isLogin:isLogin, blogs:data})
+        })  
     })
-    res.render('blog', {isLogin:isLogin, blogs:dataBlogs})
+
+    // console.log(blogs)
+    // let dataBlogs = blogs.map(function(data){
+    //     return {
+    //         ...data,
+    //         isLogin:isLogin
+    //     }
+    // })
+    // res.render('blog', {isLogin:isLogin, blogs:dataBlogs})
 })
 
 app.get('/add-blog', function(req, res){
@@ -105,7 +129,7 @@ app.get('/delete-blog/:index', function(req, res){
 // app.get
 
 // konfigurasi port aplikasi
-const port = 5000 
+const port = 4000 
 //ibarat jalanan yg dilalui nodejs, nilainya biasanya diatas 3000
 app.listen(port, function (){
     console.log(`Albedo running on port ${port}`)
