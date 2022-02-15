@@ -82,7 +82,7 @@ app.get('/blog', function(req, res){
     // res.render('blog', {isLogin:isLogin, blogs:dataBlogs})
 })
 
-app.get('/add-blog', function(req, res){
+app.get('/add-blog', function(req, res){npm 
     res.render('form-blog')
     
 })
@@ -120,7 +120,7 @@ app.get('/contact-me', function(req, res){
     
 })
 
-app.get('/delete-blog/:index', function(req, res){
+app.get('/delete-post/:index', function(req, res){
     let index = req.params.index
     blogs.splice(index,1)
     console.log(`index data: ${index}`)
