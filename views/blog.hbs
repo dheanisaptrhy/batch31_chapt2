@@ -48,12 +48,12 @@
       <div class="blog-content">
         {{#if isLogin}}
         <div class="button-group">
-          <a class="btn-edit">Edit Post</button>
-            <a href="/delete-post/{{@index}}"class="btn-post">Delete Blog</a>
+          <a href = "/update-post/{{this.id}}"class="btn-edit">Edit Post</button>
+          <a href="/delete-post/{{this.id}}"class="btn-post">Delete Blog</a>
         </div>
         {{/if}}
         <h1>
-          <a href="/blog/1" target="_blank">
+          <a href="/blog/{{this.id}}" target="_blank">
             {{this.title}}
           </a>
         </h1>
@@ -63,6 +63,9 @@
         <p>
           {{this.content}}
         </p>
+        <div style="text-align: right;">
+          <span style="font-size:15px; color:grey;">{{this.post_age}}</span>
+        </div>
       </div>
     </div>
     {{/each}}

@@ -8,6 +8,13 @@ const db = require('./connection/db.js')
 const app = express()
 
 const isLogin = true
+// app.get
+// konfigurasi port aplikasi
+const port = 4000 
+//ibarat jalanan yg dilalui nodejs, nilainya biasanya diatas 3000
+app.listen(port, function (){
+    console.log(`Albedo running on port ${port}`)
+})
 
 let month = [
     'Januari',
@@ -22,15 +29,6 @@ let month = [
     'Oktober',
     'November',
     'Desember'
-]
-
-const blogs= [
-    {
-        title:"hemelekete",
-        content: "heheheh",
-        author: "Albedo",
-        posted_at: "12-03-1997"
-    }
 ]
 
 // set template engine
@@ -50,7 +48,7 @@ app.get('/home', function(req, res){
 })
 
 app.get('/blog', function(req, res){
-    let query = 'select * from tb_blog'
+    let query = 'select * from tb_blog order by id desc'
     db.connect((err, client,done)=>{
         if(err) throw err
         client.query(query, (err,result)=>{
@@ -65,24 +63,17 @@ app.get('/blog', function(req, res){
                 return {
                     ...blog,
                     isLogin:isLogin,
-                    posted_at: getFullTime(blog.posted_at)
+                    posted_at: getFullTime(blog.posted_at),
+                    post_age: getDistanceDay(blog.posted_at)
                 }
             })
-            res.render('blog', {isLogin:isLogin, blogs:data})
+            res.render('blog', {isLogin:isLogin, blogs:data, post_age:data})
         })  
     })
 
-    // console.log(blogs)
-    // let dataBlogs = blogs.map(function(data){
-    //     return {
-    //         ...data,
-    //         isLogin:isLogin
-    //     }
-    // })
-    // res.render('blog', {isLogin:isLogin, blogs:dataBlogs})
 })
 
-app.get('/add-blog', function(req, res){npm 
+app.get('/add-blog', function(req, res){
     res.render('form-blog')
     
 })
@@ -92,27 +83,44 @@ app.get('/add-blog', function(req, res){npm
 // ada session
 
 app.post('/blog', function(req,res){
-    let title = req.body.title
-    let content = req.body.content
-    let date= new Date()
+    let {title, content} = req.body
     // app.
     let blog = {
         title,
         content,
-        author: "Albedo",
-        posted_at: getFullTime(date)
+        image : 'image.png'
     }
 
-    blogs.push(blog)
-    // console.log(blogs)
-
+    db.connect((err, client, done)=>{
+        if (err) throw err
+        let query = `insert into tb_blog(title, content, image) values ($1, $2, $3)`
+        let query_value = [blog.title, blog.content, blog.image]
+        client.query(query, query_value, (err, result)=>{
+            done()
+            if(err) throw err
+            res.redirect('/blog')
+        })
+    })
     res.redirect('/blog')
 })
 
 app.get('/blog/:id', function(req, res){
-    let id = req.params.id
-    console.log(`id dari client : ${id}`)
-    res.render('blog-detail', {id : id})
+    let{id} = req.params
+
+    db.connect((err, client, done)=>{
+        if (err) throw err
+
+        let query = `select * from tb_blog where id=$1`
+        query_value = [id]
+        client.query(query, query_value, (err, result)=>{
+            done()
+            if(err) throw err
+            let data = result.rows[0]
+            console.log(result)
+
+            res.render('blog-detail', {blog : data})
+        })
+    })
 })
 
 app.get('/contact-me', function(req, res){
@@ -120,21 +128,59 @@ app.get('/contact-me', function(req, res){
     
 })
 
-app.get('/delete-post/:index', function(req, res){
-    let index = req.params.index
-    blogs.splice(index,1)
-    console.log(`index data: ${index}`)
+app.get('/delete-post/:id', function(req, res){
+    let {id} = req.params
+    let query = `delete from tb_blog where id=$1`
+    let query_value = [id]
+    db.connect((err, client, done)=>{
+        if(err) throw err
+        client.query(query, query_value, (err, result)=>{
+            done()
+            res.redirect('/blog')
+        })
+    })
 })
 
-// app.get
+app.get('/update-post/:id', (req,res)=>{
+    let{id} = req.params
 
-// konfigurasi port aplikasi
-const port = 4000 
-//ibarat jalanan yg dilalui nodejs, nilainya biasanya diatas 3000
-app.listen(port, function (){
-    console.log(`Albedo running on port ${port}`)
+    db.connect((err, client, done)=>{
+        if(err) throw err
+
+        let query = `select * from tb_blog where id=$1`
+        query_value = [id]
+        client.query(query, query_value, (err, result)=>{
+            done()
+            if(err) throw err
+            let data = result.rows[0]
+
+            res.render('update-blog', {blog : data})
+        })
+    })
 })
 
+app.post('/update-post/:id', (req,res)=>{
+    let {id} = req.params
+    let {title, content} = req.body
+    let query = `update tb_blog set title='${title}', content='${content}' where id=${id}`
+    // let query_value = [title, content, id]
+    db.connect((err, client, done)=>{
+        if(err) throw err
+
+        client.query(query, (err, result)=>{
+            done()
+            if(err) throw err
+            res.redirect('/blog')
+        })
+    })
+})
+
+app.get('/register', (req, res)=>{
+    res.render('register')
+})
+app.get('/login', (req, res)=>{
+    res.render('login')
+})
 
 function getFullTime(time){
     let date= time.getDate()
@@ -149,4 +195,25 @@ function getFullTime(time){
     }
 
     return `${date} ${month[monthIndex]} ${year} ${hours}:${minutes} WIB`
+}
+
+function getDistanceDay(start){
+    const countStart = new Date(start)
+    const countEnd = new Date()
+
+    const miliseconds = 1000
+    const secondsInMinute = 60
+    const minuteInHours =  60
+    const secondsInHour = secondsInMinute * minuteInHours
+    const hoursInDay = 23
+
+    const distance = countEnd - countStart
+    const dayDistance = distance / (miliseconds*secondsInHour*hoursInDay)
+    // const monthDistance = dayDistance / MonthInDay
+
+    if (dayDistance>=1){
+        return `${Math.floor(dayDistance)} hari`
+    } else{
+        return ""
+    }
 }
