@@ -4,10 +4,30 @@ const express = require('express')
 // import  express  from 'express' (samimawon)
 const db = require('./connection/db.js')
 // import db from '.connection/db.js'
-
+const flash = require('express-flash')
+const session = require('express-session')
+const bcrypt = require('bcrypt')
+//import package bcrypt
+// const client = require('pg/lib/native/client')
+// const { MemoryStore } = require('express-session')
 const app = express()
-
-const isLogin = true
+app.use(flash())
+// setup session middleware
+app.use(
+    session({
+        cookie:{
+            maxAge: 1000*60*60*2, 
+            //durasi 2 jam => mili, detik, menit, jam
+            secure: false,
+            httpOnly: true
+        },
+        store: new session.MemoryStore(),
+        saveUninitialized: true,
+        resave: false,
+        secret: "secretValue"
+    })
+)
+// const isLogin = true
 // app.get
 // konfigurasi port aplikasi
 const port = 4000 
@@ -62,12 +82,15 @@ app.get('/blog', function(req, res){
             data = data.map((blog)=>{
                 return {
                     ...blog,
-                    isLogin:isLogin,
+                    isLogin:req.session.isLogin,
                     posted_at: getFullTime(blog.posted_at),
-                    post_age: getDistanceDay(blog.posted_at)
+                    post_age: getDistanceDay(blog.posted_at),
+                    user : req.session.user
                 }
             })
-            res.render('blog', {isLogin:isLogin, blogs:data, post_age:data})
+            res.render('blog', {isLogin:isLogin, 
+                                blogs:data, 
+                                post_age:data})
         })  
     })
 
@@ -178,8 +201,64 @@ app.post('/update-post/:id', (req,res)=>{
 app.get('/register', (req, res)=>{
     res.render('register')
 })
+app.post('/register', (req, res)=>{
+    let {name, email, password} = req.body
+    //salt : terkait kebutuhan algoritma, pengulangan ganti2 algoritma?
+    let hashPassword = bcrypt.hashSync(password, 10)
+    let data = {
+        name, email, password, hashPassword
+    }
+    db.connect((err, client, done)=>{
+        if(err) throw err
+        let query = `insert into tb_user(name, email, password) values('${name}', '${email}', '${hashPassword}')`
+        client.query(query, (err, result)=>{
+            done()
+            if(err) throw err
+            req.flash('success', 'Account successfully registered')
+            res.redirect('/login')
+        })
+    })
+})
+
 app.get('/login', (req, res)=>{
     res.render('login')
+})
+app.post('/login', (req, res)=>{
+    let{email, password} = req.body
+
+    db.connect((err, client, done)=>{
+        if(err) throw err
+        let query= `select * from tb_user where email='${email}'`
+        client.query(query, (err, result)=>{
+            done()
+            if(err) throw err
+            if(result.rowCount==0){
+                req.flash('danger','Email and Password doesnt match')
+                return res.redirect('/login')
+            } 
+            let isMatch = bcrypt.compareSync(password, result.rows[0].password)
+            //sifatnya boolean
+            if(isMatch){
+                req.session.isLogin = true
+                req.session.user ={
+                    id: result.rows[0].id,
+                    email: result.rows[0].email,
+                    name: result.rows[0].name
+
+                }
+                req.flash('success','Login Success')
+                res.redirect('/blog')
+            } else{
+                req.flash('danger','Email and Password doesnt match')
+                res.redirect('/login')
+            }
+        })
+    })
+})
+
+app.get('/logout', (req, res)=>{
+    req.session.destroy()
+    res.redirect('/home')
 })
 
 function getFullTime(time){
